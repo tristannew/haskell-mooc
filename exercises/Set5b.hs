@@ -15,7 +15,8 @@ data Tree a = Empty | Node a (Tree a) (Tree a)
 -- because the tree might be empty (i.e. just a Empty)
 
 valAtRoot :: Tree a -> Maybe a
-valAtRoot t = todo
+valAtRoot Empty = Nothing
+valAtRoot (Node a _ _) = Just a 
 
 ------------------------------------------------------------------------------
 -- Ex 2: compute the size of a tree, that is, the number of Node
@@ -26,7 +27,8 @@ valAtRoot t = todo
 --   treeSize (Node 3 (Node 7 Empty Empty) (Node 1 Empty Empty))  ==>  3
 
 treeSize :: Tree a -> Int
-treeSize t = todo
+treeSize Empty = 0
+treeSize (Node x child1 child2) = 1 + treeSize child1 + treeSize child2
 
 ------------------------------------------------------------------------------
 -- Ex 3: get the largest value in a tree of positive Ints. The
@@ -37,7 +39,26 @@ treeSize t = todo
 --   treeMax (Node 3 (Node 5 Empty Empty) (Node 4 Empty Empty))  ==>  5
 
 treeMax :: Tree Int -> Int
-treeMax = todo
+treeMax Empty = 0
+treeMax (Node x Empty Empty) = x
+treeMax (Node x (Node y lchild1 lchild2) Empty) = max (treeMax leftTree) (treeMax rightTree)
+  where 
+    biggest = max x y
+    leftTree = Node biggest lchild1 lchild2
+    rightTree = Node biggest Empty Empty
+treeMax (Node x Empty (Node y rchild1 rchild2)) = max (treeMax leftTree) (treeMax rightTree)
+  where 
+    biggest = max x y
+    leftTree = Node biggest Empty Empty
+    rightTree = Node biggest rchild1 rchild2
+treeMax (Node x (Node y lchild1 lchild2) (Node z rchild1 rchild2)) = max (treeMax leftTree) (treeMax rightTree)
+  where 
+    biggest = maximum [x, y, z]
+    leftTree = Node biggest lchild1 lchild2
+    rightTree = Node biggest rchild1 rchild2
+
+-- treeMax Empty = 0
+-- treeMax (Node v l r) = maximum [v, treeMax l, treeMax r]
 
 ------------------------------------------------------------------------------
 -- Ex 4: implement a function that checks if all tree values satisfy a
@@ -49,7 +70,9 @@ treeMax = todo
 --   allValues (>0) (Node 1 Empty (Node 0 Empty Empty))  ==>  False
 
 allValues :: (a -> Bool) -> Tree a -> Bool
-allValues condition tree = todo
+allValues condition Empty = True
+allValues condition (Node x lchild rchild) = 
+  condition x && allValues condition lchild && allValues condition rchild
 
 ------------------------------------------------------------------------------
 -- Ex 5: implement map for trees.
@@ -61,7 +84,8 @@ allValues condition tree = todo
 --   ==> (Node 2 (Node 3 Empty Empty) (Node 4 Empty Empty))
 
 mapTree :: (a -> b) -> Tree a -> Tree b
-mapTree f t = todo
+mapTree _ Empty = Empty
+mapTree f (Node x lchild rchild) = Node (f x) (mapTree f lchild) (mapTree f rchild)
 
 ------------------------------------------------------------------------------
 -- Ex 6: given a value and a tree, build a new tree that is the same,
@@ -105,7 +129,10 @@ mapTree f t = todo
 --                 (Node 3 Empty Empty))
 
 cull :: Eq a => a -> Tree a -> Tree a
-cull val tree = todo
+cull val Empty = Empty
+cull val (Node x lchild rchild)
+  | x == val = Empty 
+  | otherwise = Node x (cull val lchild) (cull val rchild)
 
 ------------------------------------------------------------------------------
 -- Ex 7: check if a tree is ordered. A tree is ordered if:
@@ -142,12 +169,14 @@ cull val tree = todo
 --        0     3   is ordered:
 --         \
 --          1
---   isOrdered (Node 2 (Node 0 Empty
---                             (Node 1 Empty Empty))
---                     (Node 3 Empty Empty))   ==>   True
+  -- isOrdered (Node 2 (Node 0 Empty
+  --                           (Node 1 Empty Empty))
+  --                   (Node 3 Empty Empty))   ==>   True
 
 isOrdered :: Ord a => Tree a -> Bool
-isOrdered = todo
+isOrdered Empty = True
+isOrdered (Node x lchild rchild) = 
+  allValues (<x) lchild && allValues (>x) rchild && isOrdered lchild && isOrdered rchild
 
 ------------------------------------------------------------------------------
 -- Ex 8: a path in a tree can be represented as a list of steps that
@@ -166,7 +195,11 @@ data Step = StepL | StepR
 --   walk [StepL,StepL] (Node 1 (Node 2 Empty Empty) Empty)  ==>  Nothing
 
 walk :: [Step] -> Tree a -> Maybe a
-walk = todo
+walk _ Empty = Nothing
+walk [] (Node x _ _) = Just x
+walk (step:steps) (Node x lchild rchild) = case step of 
+  StepL -> walk steps lchild
+  StepR -> walk steps rchild
 
 ------------------------------------------------------------------------------
 -- Ex 9: given a tree, a path and a value, set the value at the end of
@@ -187,7 +220,11 @@ walk = todo
 --   set [StepL,StepR] 1 (Node 0 Empty Empty)  ==>  (Node 0 Empty Empty)
 
 set :: [Step] -> a -> Tree a -> Tree a
-set path val tree = todo
+set xs val Empty = Empty
+set [] val (Node x lchild rchild) = Node val lchild rchild
+set (step:steps) val (Node x lchild rchild) = case step of 
+  StepL -> Node x (set steps val lchild) rchild
+  StepR -> Node x lchild (set steps val rchild)
 
 ------------------------------------------------------------------------------
 -- Ex 10: given a value and a tree, return a path that goes from the
@@ -203,4 +240,19 @@ set path val tree = todo
 --                    (Node 5 Empty Empty))                     ==>  Just [StepL,StepR]
 
 search :: Eq a => a -> Tree a -> Maybe [Step]
-search = todo
+search _ Empty = Nothing
+search value (Node x left right)
+  | x == value = Just []
+  | otherwise = case (search value left, search value right) of
+  (Just leftPath, _) -> Just $ StepL:leftPath
+  (_, Just rightPath) -> Just $ StepR:rightPath
+  (Nothing, Nothing) -> Nothing
+
+-- search _ Empty = Nothing
+-- search v (Node v' l r)
+--   | v==v' = Just []
+--   | otherwise = case search v l of
+--                   Just xs -> Just (StepL:xs)
+--                   Nothing -> case search v r of
+--                                Just xs -> Just (StepR:xs)
+--                                Nothing -> Nothing
