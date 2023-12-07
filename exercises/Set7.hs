@@ -26,11 +26,11 @@ data Velocity = Velocity Double
 
 -- velocity computes a velocity given a distance and a time
 velocity :: Distance -> Time -> Velocity
-velocity = todo
+velocity (Distance x) (Time y) = Velocity (x / y) 
 
 -- travel computes a distance given a velocity and a time
 travel :: Velocity -> Time -> Distance
-travel = todo
+travel (Velocity x) (Time y) = Distance (x * y)
 
 ------------------------------------------------------------------------------
 -- Ex 2: let's implement a simple Set datatype. A Set is a list of
@@ -49,15 +49,15 @@ data Set a = Set [a]
 
 -- emptySet is a set with no elements
 emptySet :: Set a
-emptySet = todo
+emptySet = Set []
 
 -- member tests if an element is in a set
 member :: Eq a => a -> Set a -> Bool
-member = todo
+member val (Set xs) = val `elem` xs
 
 -- add a member to a set
 add :: a -> Set a -> Set a
-add = todo
+add val (Set xs) = Set (val:xs)
 
 ------------------------------------------------------------------------------
 -- Ex 3: a state machine for baking a cake. The type Event represents
@@ -92,10 +92,19 @@ add = todo
 data Event = AddEggs | AddFlour | AddSugar | Mix | Bake
   deriving (Eq,Show)
 
-data State = Start | Error | Finished
+data State = Start | EggsAdded | FlourAdded | SugarAdded | Mixed | Baked | Error | Finished
   deriving (Eq,Show)
 
-step = todo
+step :: State -> Event -> State
+step Finished _ = Finished
+step Error _ = Error
+step state event = case (state, event) of
+  (Start, AddEggs) -> EggsAdded 
+  (EggsAdded, AddFlour) -> FlourAdded
+  (FlourAdded, AddSugar) -> SugarAdded
+  (SugarAdded, Mix) -> Mixed
+  (Mixed, Bake) -> Finished
+  _ -> Error
 
 -- do not edit this
 bake :: [Event] -> State
