@@ -26,7 +26,7 @@ data Velocity = Velocity Double
 
 -- velocity computes a velocity given a distance and a time
 velocity :: Distance -> Time -> Velocity
-velocity (Distance x) (Time y) = Velocity (x / y) 
+velocity (Distance x) (Time y) = Velocity (x / y)
 
 -- travel computes a distance given a velocity and a time
 travel :: Velocity -> Time -> Distance
@@ -49,15 +49,15 @@ data Set a = Set [a]
 
 -- emptySet is a set with no elements
 emptySet :: Set a
-emptySet = Set []
+emptySet = Set mempty
 
 -- member tests if an element is in a set
 member :: Eq a => a -> Set a -> Bool
 member val (Set xs) = val `elem` xs
 
 -- add a member to a set
-add :: a -> Set a -> Set a
-add val (Set xs) = Set (val:xs)
+add :: (Eq a, Ord a) => a -> Set a -> Set a
+add val (Set xs) = if member val (Set xs) then Set xs else Set (sort (val:xs))
 
 ------------------------------------------------------------------------------
 -- Ex 3: a state machine for baking a cake. The type Event represents
@@ -92,19 +92,26 @@ add val (Set xs) = Set (val:xs)
 data Event = AddEggs | AddFlour | AddSugar | Mix | Bake
   deriving (Eq,Show)
 
-data State = Start | EggsAdded | FlourAdded | SugarAdded | Mixed | Baked | Error | Finished
+data State = Start | EggsAdded | FlourAdded | SugarAdded | OtherOne |Mixed | Error | Finished
   deriving (Eq,Show)
 
 step :: State -> Event -> State
 step Finished _ = Finished
 step Error _ = Error
 step state event = case (state, event) of
-  (Start, AddEggs) -> EggsAdded 
+  (Start, AddEggs) -> EggsAdded
   (EggsAdded, AddFlour) -> FlourAdded
+  (EggsAdded, AddSugar) -> OtherOne
+  (OtherOne, AddFlour) -> SugarAdded -- Bypass it striahgt to sugaradded. Solution was to add another contructor
+  -- for the data class. now in cases of add sugar, flour, sugar, it falls under _ since
+  -- it is only okay to add sugar then flour then mix or add flour then sugar then mix.
   (FlourAdded, AddSugar) -> SugarAdded
   (SugarAdded, Mix) -> Mixed
   (Mixed, Bake) -> Finished
   _ -> Error
+
+-- Try brand new implementation here not using pattern matching, or even change your data class
+-- Don't use state as it is currently, do something 
 
 -- do not edit this
 bake :: [Event] -> State
@@ -133,6 +140,7 @@ average (x :| xs) = sum (x:xs) / fromIntegral (length (x:xs))
 -- PS. The Data.List.NonEmpty type has been imported for you
 
 reverseNonEmpty :: NonEmpty a -> NonEmpty a
+reverseNonEmpty (x :| []) = x :| []
 reverseNonEmpty (x :| xs) = last xs :| tail (reverse xs ++ [x])
 
 ------------------------------------------------------------------------------
@@ -162,10 +170,11 @@ instance Semigroup Velocity where
 --
 -- What are the class constraints for the instances?
 
-instance Semigroup (Set a) where
-  (<>) (Set x) (Set y) = Set (x ++ y)
+instance (Eq a, Ord a) => Semigroup (Set a) where
+  (<>) (Set []) (Set y) = Set (sort y)
+  (<>) (Set (x:xs)) (Set ys) = if x `elem` ys then Set xs <> Set ys else Set xs <> Set (x:ys)
 
-instance Monoid (Set a) where
+instance (Eq a, Ord a) => Monoid (Set a) where
   mempty = emptySet
 
 ------------------------------------------------------------------------------
@@ -189,29 +198,41 @@ instance Monoid (Set a) where
 
 data Operation1 = Add1 Int Int
                 | Subtract1 Int Int
+                | Multiply1 Int Int
   deriving Show
 
 compute1 :: Operation1 -> Int
 compute1 (Add1 i j) = i+j
 compute1 (Subtract1 i j) = i-j
+compute1 (Multiply1 i j) = i * j
 
 show1 :: Operation1 -> String
-show1 = todo
+show1 (Add1 x y) = show x ++ "+" ++ show y
+show1 (Subtract1 x y) = show x ++ "-" ++ show y
+show1 (Multiply1 x y) = show x ++ "*" ++ show y
 
 data Add2 = Add2 Int Int
   deriving Show
 data Subtract2 = Subtract2 Int Int
   deriving Show
+data Multiply2 = Multiply2 Int Int
+  deriving Show
 
 class Operation2 op where
   compute2 :: op -> Int
+  show2 :: op -> String
 
 instance Operation2 Add2 where
   compute2 (Add2 i j) = i+j
+  show2 (Add2 x y) = show x ++ "+" ++ show y
 
 instance Operation2 Subtract2 where
   compute2 (Subtract2 i j) = i-j
+  show2 (Subtract2 x y) = show x ++ "-" ++ show y
 
+instance Operation2 Multiply2 where
+  compute2 (Multiply2 i j) = i*j
+  show2 (Multiply2 x y) = show x ++ "*" ++ show y
 
 ------------------------------------------------------------------------------
 -- Ex 9: validating passwords. Below you'll find a type
@@ -240,7 +261,15 @@ data PasswordRequirement =
   deriving Show
 
 passwordAllowed :: String -> PasswordRequirement -> Bool
-passwordAllowed = todo
+passwordAllowed password requirement = case requirement of
+  MinimumLength x -> length password >= x
+  ContainsSome (x:xs) -> (x `elem` password) || passwordAllowed password (ContainsSome xs)
+  ContainsSome [] -> False
+  DoesNotContain (x:xs) -> not (x `elem` password) && passwordAllowed password (DoesNotContain xs)
+  DoesNotContain [] -> True
+  And x y -> passwordAllowed password x && passwordAllowed password y
+  Or x y -> passwordAllowed password x || passwordAllowed password y
+
 
 ------------------------------------------------------------------------------
 -- Ex 10: a DSL for simple arithmetic expressions with addition and
@@ -262,17 +291,24 @@ passwordAllowed = todo
 --     ==> "(3*(1+1))"
 --
 
-data Arithmetic = Todo
+data Arithmetic = Literal Integer | Operation String Arithmetic Arithmetic
   deriving Show
 
 literal :: Integer -> Arithmetic
-literal = todo
+literal = Literal
 
 operation :: String -> Arithmetic -> Arithmetic -> Arithmetic
-operation = todo
+operation "+" x y = Operation "+" x y
+operation "*" x y = Operation "*" x y
+
+-- each operation needs to be reduced to the actual operation. i.e operation + literal (op * 3 4) = literal + ( 3 * 4 )
 
 evaluate :: Arithmetic -> Integer
-evaluate = todo
+evaluate (Literal x) = x 
+evaluate (Operation "+" x y) = evaluate x + evaluate y 
+evaluate (Operation "*" x y) = evaluate x * evaluate y
 
 render :: Arithmetic -> String
-render = todo
+render (Literal x) = show x
+render (Operation "+" x y) = "(" ++ render x ++ "+" ++ render y ++ ")"
+render (Operation "*" x y) = "(" ++ render x ++ "*" ++ render y ++ ")"
