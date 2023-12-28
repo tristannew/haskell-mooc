@@ -15,6 +15,7 @@ import Data.List
 import Data.Ord
 
 import Mooc.Todo
+import Data.Function (on)
 
 ------------------------------------------------------------------------------
 -- Ex 1: Implement a function workload that takes in the number of
@@ -26,7 +27,11 @@ import Mooc.Todo
 -- Otherwise return "Ok."
 
 workload :: Int -> Int -> String
-workload nExercises hoursPerExercise = todo
+workload nExercises hoursPerExercise
+  | totalHours > 100 = "Holy moly!"
+  | totalHours < 10 = "Piece of cake!"
+  | otherwise = "Ok."
+  where totalHours = nExercises * hoursPerExercise
 
 ------------------------------------------------------------------------------
 -- Ex 2: Implement the function echo that builds a string like this:
@@ -39,7 +44,8 @@ workload nExercises hoursPerExercise = todo
 -- Hint: use recursion
 
 echo :: String -> String
-echo = todo
+echo "" = ""
+echo str = str ++ ", " ++ echo (tail str)
 
 ------------------------------------------------------------------------------
 -- Ex 3: A country issues some banknotes. The banknotes have a serial
@@ -52,7 +58,10 @@ echo = todo
 -- are valid.
 
 countValid :: [String] -> Int
-countValid = todo
+countValid [] = 0
+countValid (x:xs)
+  | (x !! 2 == x !! 4) || (x !! 3 == x !! 5) = 1 + countValid xs
+  | otherwise = 0 + countValid xs
 
 ------------------------------------------------------------------------------
 -- Ex 4: Find the first element that repeats two or more times _in a
@@ -64,7 +73,9 @@ countValid = todo
 --   repeated [1,2,1,2,3,3] ==> Just 3
 
 repeated :: Eq a => [a] -> Maybe a
-repeated = todo
+repeated [] = Nothing
+repeated [x] = Nothing
+repeated (x:y:xs) = if x == y then Just x else repeated (y:xs)
 
 ------------------------------------------------------------------------------
 -- Ex 5: A laboratory has been collecting measurements. Some of the
@@ -85,8 +96,35 @@ repeated = todo
 --   sumSuccess []
 --     ==> Left "no data"
 
+-- sumSuccess :: [Either String Int] -> Either String Int
+-- sumSuccess [] = Left "no data"
+-- sumSuccess xs = if result == 0 then Left "no data" else Right result
+--   where result = sumSuccessHelper 0 xs
+
+-- sumSuccessHelper :: Int -> [Either String Int] -> Int
+-- sumSuccessHelper sum [] = sum
+-- sumSuccessHelper _ [Right x] = x
+-- sumSuccessHelper _ [Left x] = 0
+-- sumSuccessHelper sum (x:xs) = case x of 
+--     Right int -> sumSuccessHelper (int+sum) xs
+--     Left _ -> sum + sumSuccessHelper sum xs
+
+
 sumSuccess :: [Either String Int] -> Either String Int
-sumSuccess = todo
+sumSuccess es = let successes = [x | Right x <- es]
+                in case successes of [] -> Left "no data"
+                                     xs -> Right (sum xs)
+
+-- sumSuccess :: [Either String Int] -> Either String Int
+-- sumSuccess xs = case length succesful of 0 -> Left "no data"
+--                                          n -> Right (sum $ map (foldr (+) 0) succesful)
+--                 where succesful = filter sumSuccess' xs
+
+-- sumSuccess' :: Either String Int -> Bool
+-- sumSuccess' (Right x) = True
+-- sumSuccess' (Left x)  = False
+
+
 
 ------------------------------------------------------------------------------
 -- Ex 6: A combination lock can either be open or closed. The lock
@@ -108,30 +146,37 @@ sumSuccess = todo
 --   isOpen (open "0000" (lock (changeCode "0000" (open "1234" aLock)))) ==> True
 --   isOpen (open "1234" (lock (changeCode "0000" (open "1234" aLock)))) ==> False
 
-data Lock = LockUndefined
+data Lock = OpenLock String | ClosedLock String
   deriving Show
 
 -- aLock should be a locked lock with the code "1234"
 aLock :: Lock
-aLock = todo
+aLock = ClosedLock "1234"
 
 -- isOpen returns True if the lock is open
 isOpen :: Lock -> Bool
-isOpen = todo
+isOpen lock = case lock of
+  OpenLock _ -> True
+  ClosedLock _ -> False
 
 -- open tries to open the lock with the given code. If the code is
 -- wrong, nothing happens.
 open :: String -> Lock -> Lock
-open = todo
+open str (ClosedLock code) = if str == code then OpenLock code else ClosedLock code
+open str (OpenLock code) = OpenLock code
 
 -- lock closes a lock. If the lock is already closed, nothing happens.
 lock :: Lock -> Lock
-lock = todo
+lock lock = case lock of
+  ClosedLock code -> ClosedLock code
+  OpenLock code -> ClosedLock code
 
 -- changeCode changes the code of an open lock. If the lock is closed,
 -- nothing happens.
 changeCode :: String -> Lock -> Lock
-changeCode = todo
+changeCode newCode (ClosedLock code) = ClosedLock code
+changeCode newCode (OpenLock code) = OpenLock newCode
+
 
 ------------------------------------------------------------------------------
 -- Ex 7: Here's a type Text that just wraps a String. Implement an Eq
@@ -149,7 +194,12 @@ changeCode = todo
 data Text = Text String
   deriving Show
 
-
+instance Eq Text where
+  (==) (Text str1) (Text str2) = removeSpaces str1 == removeSpaces str2
+    where removeSpaces [] = []
+          removeSpaces (x:xs) = if Data.Char.isSpace x then removeSpaces xs else x : removeSpaces xs
+    
+  -- Text s == Text t  =  filter (not . isSpace) s == filter (not . isSpace) t
 ------------------------------------------------------------------------------
 -- Ex 8: We can represent functions or mappings as lists of pairs.
 -- For example the list [("bob",13),("mary",8)] means that "bob" maps
@@ -182,7 +232,11 @@ data Text = Text String
 --       ==> [("a",1),("b",2)]
 
 compose :: (Eq a, Eq b) => [(a,b)] -> [(b,c)] -> [(a,c)]
-compose = todo
+compose [] _ = []
+compose (x:xs) lookHere = let lookupItem = lookup (snd x) lookHere in
+  case lookupItem of
+    Nothing -> compose xs lookHere
+    Just a -> (fst x, a) : compose xs lookHere
 
 ------------------------------------------------------------------------------
 -- Ex 9: Reorder a list using a list of indices.
@@ -226,4 +280,7 @@ multiply :: Permutation -> Permutation -> Permutation
 multiply p q = map (\i -> p !! (q !! i)) (identity (length p))
 
 permute :: Permutation -> [a] -> [a]
-permute = todo
+permute xs ys = let zippedList = zip xs ys in
+  [snd x | x <- sortBy (compare `on` fst) zippedList]
+
+-- permute p = map snd . sortBy (comparing fst) . zip p

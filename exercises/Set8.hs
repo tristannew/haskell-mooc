@@ -169,11 +169,15 @@ dotAndLine = Picture f
 --          ["7f0000","7f0000","7f0000"]]
 
 blendColor :: Color -> Color -> Color
-blendColor (Color a b c) (Color d e f) = Color ((a+d) `div` 2) ((b+e) `div` 2) ((c+f) `div` 2) 
+blendColor (Color a b c) (Color d e f) = Color ((a+d) `div` 2) ((b+e) `div` 2) ((c+f) `div` 2)
+-- blendColor (Color r1 g1 b1) (Color r2 g2 b2) = Color (avg r1 r2) (avg g1 g2) (avg b1 b2)
+--   where avg x y = div (x+y) 2
 
 combine :: (Color -> Color -> Color) -> Picture -> Picture -> Picture
 combine f (Picture x) (Picture y) = Picture (\p -> f (x p) (y p))
 -- What is p in this ^ ?????
+-- combine op (Picture f) (Picture g) = Picture h
+--   where h coord = op (f coord) (g coord)
 
 ------------------------------------------------------------------------------
 
@@ -287,6 +291,10 @@ exampleSnowman = fill white snowman
 paintSolid :: Color -> Shape -> Picture -> Picture
 paintSolid color (Shape f1) (Picture g1) = Picture newPic
   where newPic coords = if f1 coords then color else g1 coords
+
+-- paintSolid c (Shape f) (Picture g) = Picture h
+--   where h coord | f coord = c
+--                 | otherwise = g coord
 
 -- paintSolid :: Color -> Shape -> Picture -> Picture
 -- paintSolid color (Shape f1) (Picture g1) = Picture g
@@ -426,6 +434,10 @@ instance Transform Flip where
     where newPic (Coord x y) = p1 (Coord x (-y))
   apply FlipXY (Picture p1) = Picture newPic
     where newPic (Coord x y) = p1 (Coord y x)
+
+  -- apply FlipX (Picture f) = Picture (\(Coord x y) -> f (Coord (negate x) y))
+  -- apply FlipY (Picture f) = Picture (\(Coord x y) -> f (Coord x (negate y)))
+  -- apply FlipXY (Picture f) = Picture (f . flipCoordXY)
 ------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------
@@ -490,6 +502,13 @@ sumColor (Color r1 g1 b1) (Color r2 g2 b2) = Color (r1+r2) (g1+g2) (b1+b2)
 divColor :: Color -> Int -> Color
 divColor (Color x y z) i = Color (d x) (d y) (d z)
   where d c = (div) c i
+
+  -- apply Blur (Picture f) = Picture g
+  --   where g c = avg (map f (neighbours c))
+  --         neighbours (Coord x y) = [Coord x y, Coord (x-1) y, Coord (x+1) y, Coord x (y-1), Coord x (y+1)]
+  --         avg colors = let n = length colors
+  --                      in Color (sum (map getRed colors) `div` n) (sum (map getGreen colors) `div` n) (sum (map getBlue colors) `div` n)
+  
   -- apply Blur (Picture p1) = Picture newPic
   --   where newPic (Coord x y) = blendColor (p1 (Coord x (y-1))) (blendColor (blendColor (p1 (Coord x y)) (p1 (Coord (x+1) y))) (blendColor (p1 (Coord x (y+1))) (p1 (Coord (x-1) y))))
 ------------------------------------------------------------------------------
