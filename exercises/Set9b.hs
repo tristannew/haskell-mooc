@@ -47,10 +47,10 @@ type Col   = Int
 type Coord = (Row, Col)
 
 nextRow :: Coord -> Coord
-nextRow (i,j) = todo
+nextRow (i,j) = (i+1, 1) 
 
 nextCol :: Coord -> Coord
-nextCol (i,j) = todo
+nextCol (i,j) = (i, j+1)
 
 --------------------------------------------------------------------------------
 -- Ex 2: Implement the function prettyPrint that, given the size of
@@ -102,8 +102,31 @@ nextCol (i,j) = todo
 
 type Size = Int
 
+-- prettyPrint :: Size -> [Coord] -> String
+-- prettyPrint nrows xs = let ncols = maximum [snd x | x <- xs] in
+--     printerHelper nrows ncols xs nrows ncols
+
+-- printerHelper :: Size -> Size -> [Coord] -> Size -> Size -> String
+-- printerHelper 0 _ _ _ _ = ""
+-- printerHelper nrows 0 xs mainr mainc = "\n" ++ printerHelper (nrows-1) mainc xs (nrows-1) mainc
+-- printerHelper nrows ncols [] mainr mainc = "." ++ printerHelper nrows (ncols-1) [] mainr mainc
+-- printerHelper nrows ncols (x:xs) mainr mainc =
+--     if ncols == snd x + 1 && nrows == fst x + 1 -- Adjust for 1-indexing
+--         then "Q" ++ printerHelper nrows (ncols-1) xs mainr mainc
+--         else "." ++ printerHelper nrows (ncols-1) xs mainr mainc
+
 prettyPrint :: Size -> [Coord] -> String
-prettyPrint = todo
+prettyPrint n queens = unlines [rowString r queens | r <- [1..n]]
+  where
+    rowString r qs = [if hasQueen r c qs then 'Q' else '.' | c <- [1..n]]
+
+hasQueen :: Int -> Int -> [Coord] -> Bool
+hasQueen r c queens = any (\(qr, qc) -> qr == r && qc == c) queens
+
+
+
+
+-- helper 4 4 [(0,1), (3,2)]
 
 --------------------------------------------------------------------------------
 -- Ex 3: The task in this exercise is to define the relations sameRow, sameCol,
@@ -127,16 +150,16 @@ prettyPrint = todo
 --   sameAntidiag (500,5) (5,500) ==> True
 
 sameRow :: Coord -> Coord -> Bool
-sameRow (i,j) (k,l) = todo
+sameRow (i,j) (k,l) = i == k
 
 sameCol :: Coord -> Coord -> Bool
-sameCol (i,j) (k,l) = todo
+sameCol (i,j) (k,l) = j == l
 
 sameDiag :: Coord -> Coord -> Bool
-sameDiag (i,j) (k,l) = todo
+sameDiag (i,j) (k,l) = (i,j) == (k,l) || (i - k) == (j - l) && i /= k && j /= l
 
 sameAntidiag :: Coord -> Coord -> Bool
-sameAntidiag (i,j) (k,l) = todo
+sameAntidiag (i, j) (k, l) = i + j == k + l
 
 --------------------------------------------------------------------------------
 -- Ex 4: In chess, a queen may capture another piece in the same row, column,
@@ -191,7 +214,12 @@ type Candidate = Coord
 type Stack     = [Coord]
 
 danger :: Candidate -> Stack -> Bool
-danger = todo
+danger _ [] = False
+danger point (x:xs)
+    | fst point == fst x = True
+    | snd point == snd x = True
+    | sameAntidiag point x || sameDiag point x = True
+    | otherwise = danger point xs
 
 --------------------------------------------------------------------------------
 -- Ex 5: In this exercise, the task is to write a modified version of
@@ -226,7 +254,12 @@ danger = todo
 -- solution to this version. Any working solution is okay in this exercise.)
 
 prettyPrint2 :: Size -> Stack -> String
-prettyPrint2 = todo
+prettyPrint2 n queens = unlines [rowString r queens | r <- [1..n]]
+  where
+    rowString r qs = [if hasQueen2 r c qs then 'Q' else if danger (r, c) queens then '#' else '.' | c <- [1..n]]
+
+hasQueen2 :: Int -> Int -> [Coord] -> Bool
+hasQueen2 r c queens = any (\(qr, qc) -> qr == r && qc == c) queens
 
 --------------------------------------------------------------------------------
 -- Ex 6: Now that we can check if a piece can be safely placed into a square in
@@ -270,8 +303,20 @@ prettyPrint2 = todo
 --     ####Q###
 --     Q#######
 
+-- fixFirst :: Size -> Stack -> Maybe Stack
+-- fixFirst _ [] = Nothing
+-- fixFirst n (x:xs) = if n < snd x || danger x xs then fixFirst n xs else Just (x : fixFirstHelper n xs)
+
+-- fixFirstHelper :: Size -> Stack -> Stack
+-- fixFirstHelper _ [] = []
+-- fixFirstHelper n (x:xs) = if n < snd x || danger x xs then fixFirstHelper n ((fst x, snd x + 1):xs) else x : fixFirstHelper n xs
+
 fixFirst :: Size -> Stack -> Maybe Stack
-fixFirst n s = todo
+fixFirst _ [] = Just []
+fixFirst n ((i, j) : qs)
+  | j > n = Nothing
+  | danger (i, j) qs = fixFirst n ((i, j + 1) : qs)
+  | otherwise = Just ((i, j) : qs)
 
 --------------------------------------------------------------------------------
 -- Ex 7: We need two helper functions for stack management.
@@ -293,10 +338,12 @@ fixFirst n s = todo
 -- Hint: Remember nextRow and nextCol? Use them!
 
 continue :: Stack -> Stack
-continue s = todo
+continue s = newRow : s
+    where newRow = nextRow $ head s
 
 backtrack :: Stack -> Stack
-backtrack s = todo
+backtrack (s:x:ss) = newCol : ss
+    where newCol = nextCol x
 
 --------------------------------------------------------------------------------
 -- Ex 8: Let's take a step. Our algorithm solves the problem (in a
